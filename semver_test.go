@@ -1,4 +1,4 @@
-package sutil
+package main
 
 import (
 	"github.com/blang/semver"
