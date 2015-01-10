@@ -42,6 +42,7 @@ func TestNewSemverRequirements_direct(t *testing.T) {
 	check(">=1.2.7 <1.3.0", []string{"1.2.7", "1.2.8", "1.2.99"}, []string{"1.2.6", "1.3.0", "1.1.0"})
 	check("1.2.7 || >=1.2.9 <2.0.0", []string{"1.2.7", "1.2.9", "1.4.6"}, []string{"1.2.8", "2.0.0"})
 	check(">1.2.3-alpha.3", []string{"1.2.3-alpha.7", "3.4.5"}, []string{"3.4.5-alpha.9"})
+	check(">= 0.3.0", []string{"0.3.0", "0.3.1", "1.0.0"}, []string{"0.0.0", "0.2.0", "0.2.9", "0.3.0-beta"})
 }
 
 func TestNewSemverRequirements_hyphens(t *testing.T) {

@@ -23,6 +23,8 @@ type SemverRequirements struct {
 	requirements [][]requirement
 }
 
+var cleanup = strings.NewReplacer("  ", " ", "> ", ">", "= ", "=", "< ", "<")
+
 //strips any prefix for the version for parsing
 func stripPrefix(version string) string {
 	switch version[0] {
@@ -172,7 +174,7 @@ func NewSemverRequirements(requirements string) (*SemverRequirements, error) {
 	sr := new(SemverRequirements)
 
 	//cleanup, trim and remove duplicate whitespace
-	requirements = strings.TrimSpace(requirements)
+	requirements = cleanup.Replace(strings.TrimSpace(requirements))
 	parts := strings.Split(requirements, " ")
 	sr.requirements = make([][]requirement, 0, len(parts))
 	var currentSet []requirement
