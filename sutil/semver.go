@@ -1,4 +1,4 @@
-package main
+package sutil
 
 import (
 	"github.com/blang/semver"
@@ -106,12 +106,18 @@ func parseUp(version string) (sv semver.Version, round bool, err error) {
 
 //checks, if a prerelease, that the major,minor,patch tuple match
 func validPrerelease(orig semver.Version, sv semver.Version) bool {
-	if sv.Pre == nil {
+	//test version has no prerelease tag, then it's fine
+	if sv.Pre == nil || len(sv.Pre) == 0 {
 		return true
 	}
-	if orig.Pre != nil {
+
+	//in this case it DOES have a pre-tag
+	//but if the original does NOT then it's invalid
+	if orig.Pre == nil && len(orig.Pre) == 0 {
 		return false
 	}
+
+	//otherwise check that the tuple is matching
 	return orig.Major == sv.Major && orig.Minor == sv.Minor && orig.Patch == sv.Patch
 }
 
@@ -130,6 +136,34 @@ func checkVersion(req requirement, sv semver.Version) bool {
 	default:
 		panic("Unknown comparator")
 	}
+}
+
+func (r *requirement) String() string {
+	switch r.svType {
+	case svLT:
+		return "<" + r.version.String()
+	case svLTE:
+		return "<=" + r.version.String()
+	case svGT:
+		return ">" + r.version.String()
+	case svGTE:
+		return ">=" + r.version.String()
+	case svEQ:
+		return "=" + r.version.String()
+	default:
+		panic("Unknown `svType`")
+	}
+}
+func (s *SemverRequirements) String() string {
+	ors := make([]string, 0, len(s.requirements))
+	for _, req := range s.requirements {
+		ands := make([]string, 0, len(req))
+		for _, v := range req {
+			ands = append(ands, v.String())
+		}
+		ors = append(ors, strings.Join(ands, " "))
+	}
+	return strings.Join(ors, " || ")
 }
 
 func NewSemverRequirements(requirements string) (*SemverRequirements, error) {
@@ -170,7 +204,32 @@ func NewSemverRequirements(requirements string) (*SemverRequirements, error) {
 		} else {
 			switch parts[i][0] {
 			case '^':
+				currentSet = append(currentSet, requirement{vLow, svGTE})
+				if vLow.Major != 0 {
+					vHigh, _, err = parseUp(strconv.Itoa(int(vLow.Major)) + ".x")
+					if err != nil {
+						return nil, err
+					}
+					currentSet = append(currentSet, requirement{vHigh, svLT})
+				} else if vLow.Minor != 0 {
+					vHigh, _, err = parseUp("0." + strconv.Itoa(int(vLow.Minor)) + ".x")
+					if err != nil {
+						return nil, err
+					}
+					currentSet = append(currentSet, requirement{vHigh, svLT})
+				} else {
+					vHigh.Pre = nil
+					currentSet = append(currentSet, requirement{vHigh, highComparator})
+				}
 			case '~':
+				currentSet = append(currentSet, requirement{vLow, svGTE})
+				vparts := strings.SplitN(clean, ".", 2)
+				if len(vparts) == 1 {
+					vHigh, _, err = parseUp(strconv.Itoa(int(vLow.Major)))
+				} else {
+					vHigh, _, err = parseUp(strconv.Itoa(int(vLow.Major)) + "." + strconv.Itoa(int(vLow.Minor)))
+				}
+				currentSet = append(currentSet, requirement{vHigh, svLT})
 			case '<':
 				if parts[i][1] == '=' {
 					currentSet = append(currentSet, requirement{vLow, svLTE})
@@ -204,7 +263,7 @@ func (s *SemverRequirements) SatisfiedBy(sv semver.Version) bool {
 	for _, reqs := range s.requirements {
 		valid := true
 		for _, v := range reqs {
-			if !validPrerelease(v.version, sv) {
+			if (v.svType == svGT || v.svType == svGTE) && !validPrerelease(v.version, sv) {
 				valid = false
 				break
 			}
