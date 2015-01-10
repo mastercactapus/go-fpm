@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sort"
+	"sync"
 )
 
 type Registry struct {
@@ -33,23 +34,51 @@ type repoPackageData struct {
 type Package struct {
 	Name                 string
 	Version              string
-	Dependencies         map[string]string
-	DevDependencies      map[string]string
-	OptionalDependencies map[string]string
-	PeerDependencies     map[string]string
+	Dependencies         DependencyMap
+	DevDependencies      DependencyMap
+	OptionalDependencies DependencyMap
+	PeerDependencies     DependencyMap
 	Dist                 struct {
 		Tarball string
 		Shasum  string
 	}
 }
 
+type DependencyMap map[string]*SemverRequirements
+
 type ResponseError struct {
 	Code   int
 	Status string
 }
 
+type SatisfiesChecker interface {
+	SatisfiedBy(semver.Version) bool
+	String() string
+}
+
 func (r *ResponseError) Error() string {
 	return fmt.Sprintf("Bad or unexpected status code %i: %s", r.Code, r.Status)
+}
+
+func (d *DependencyMap) UnmarshalJSON(data []byte) error {
+	m := make(map[string]string, 100)
+	err := json.Unmarshal(data, &m)
+	if err != nil {
+		log.Debugf("Failed to unmarshal dependencies as map[string]string: %s\n", err.Error())
+		return err
+	}
+
+	deps := make(DependencyMap, len(m))
+	for k, v := range m {
+		req, err := NewSemverRequirements(v)
+		if err != nil {
+			log.Debugf("Failed to parse semver requirement '%s': %s\n", v, err.Error())
+			return err
+		}
+		deps[k] = req
+	}
+	*d = deps
+	return nil
 }
 
 func NewRegistry(baseUrl string) *Registry {
@@ -66,20 +95,19 @@ func NewRegistry(baseUrl string) *Registry {
 	return r
 }
 
-// func (r *Registry) CompatablePackageVersions(name string, sv string) (semver.Versions, error) {
-// 	versions, err := r.PackageVersions(name)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	result := make(semver.Versions, 0, len(versions))
-// 	for _, v := range versions {
-// 		v.
-// 		if v.GTE(sv) {
-// 			result = append(result, v)
-// 		}
-// 	}
-// 	return result, nil
-// }
+func (r *Registry) CompatablePackageVersions(name string, req SatisfiesChecker) ([]semver.Version, error) {
+	versions, err := r.PackageVersions(name)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]semver.Version, 0, len(versions))
+	for _, v := range versions {
+		if req.SatisfiedBy(v) {
+			result = append(result, v)
+		}
+	}
+	return result, nil
+}
 
 func (r *Registry) LatestPackageVersion(name string) (v semver.Version, err error) {
 	versions, err := r.PackageVersions(name)
@@ -92,18 +120,18 @@ func (r *Registry) LatestPackageVersion(name string) (v semver.Version, err erro
 	return versions[0], nil
 }
 
-// func (r *Registry) LatestCompatablePackageVersion(name string, sv semver.Version) (version semver.Version, err error) {
-// 	versions, err := r.PackageVersions(name)
-// 	if err != nil {
-// 		return version, err
-// 	}
-// 	for _, v := range versions {
-// 		if v.GTE(sv) {
-// 			return v, nil
-// 		}
-// 	}
-// 	return version, errors.New("No compatable versions available for: " + name + "@" + sv.String())
-// }
+func (r *Registry) LatestCompatablePackageVersion(name string, req SatisfiesChecker) (version semver.Version, err error) {
+	versions, err := r.PackageVersions(name)
+	if err != nil {
+		return version, err
+	}
+	for _, v := range versions {
+		if req.SatisfiedBy(v) {
+			return v, nil
+		}
+	}
+	return version, errors.New("No compatable versions available for: " + name + "@" + req.String())
+}
 
 func (r *Registry) PackageByVersion(name string, version string) (*Package, error) {
 	p, err := r.packageData(name)
@@ -111,7 +139,7 @@ func (r *Registry) PackageByVersion(name string, version string) (*Package, erro
 		return nil, err
 	}
 	if p.Versions[version] == nil {
-
+		return nil, errors.New("No version found for: " + name + "@" + version)
 	}
 	return p.Versions[version], nil
 }
@@ -134,14 +162,22 @@ func (r *Registry) dataFetchLoop() {
 			log.Debugln("Processing", req.name, "from queue.")
 			//if already cached and good to go then return
 			if r.cache[req.name] != nil {
+				if req.ch == nil {
+					continue
+				}
 				req.ch <- r.cache[req.name]
 				//if already being fetch then add the return channel
 			} else if pending[req.name] != nil {
+				if req.ch == nil {
+					continue
+				}
 				pending[req.name] = append(pending[req.name], req.ch)
 				//initiate a new fetch
 			} else {
 				pending[req.name] = make([]chan *repoPackageData, 0, 20)
-				pending[req.name] = append(pending[req.name], req.ch)
+				if req.ch != nil {
+					pending[req.name] = append(pending[req.name], req.ch)
+				}
 				go func(name string) {
 					data, err := r.fetchPackageData(req.name)
 					if err != nil {
@@ -162,6 +198,19 @@ func (r *Registry) dataFetchLoop() {
 		}
 	}
 }
+
+func (r *Registry) cacheAll(deps DependencyMap) {
+	var wg sync.WaitGroup
+	for k := range deps {
+		wg.Add(1)
+		go func(name string) {
+			r.packageData(k)
+			wg.Done()
+		}(k)
+	}
+	wg.Wait()
+}
+
 func (r *Registry) packageData(name string) (*repoPackageData, error) {
 	ch := make(chan *repoPackageData, 1)
 	r.fetchQueue <- packageDataRequest{ch, name}
