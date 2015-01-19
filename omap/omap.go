@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 )
 
 // An OrderedMap keeps track of the order keys are placed in it
@@ -48,15 +47,13 @@ func (o *OrderedMap) Get(k string) json.RawMessage {
 	return o.m[k]
 }
 
-func nextPair(r io.Reader) (pair *keyVal, rest io.Reader, err error) {
+func nextPair(b []byte) (pair *keyVal, slice []byte, err error) {
+	var i int
+	var remaining int
+
 	//next token should be '{', ',', or '}'
-	var b = make([]byte, 1)
-	for {
-		_, err = r.Read(b)
-		if err != nil {
-			return
-		}
-		switch b[0] {
+	for i = range b {
+		switch b[i] {
 		case '\t', '\n', '\r', ' ': //skip whitespace
 			continue
 		case '{', ',': //new object, or next key
@@ -69,19 +66,17 @@ func nextPair(r io.Reader) (pair *keyVal, rest io.Reader, err error) {
 		}
 	}
 readKey:
+	slice = b[i+1:]
 	var key string
-	d := json.NewDecoder(r)
+	d := json.NewDecoder(bytes.NewReader(slice))
 	err = d.Decode(&key)
 	if err != nil {
 		return
 	}
-	r = d.Buffered()
-	for {
-		_, err = r.Read(b)
-		if err != nil {
-			return
-		}
-		switch b[0] {
+	remaining = d.Buffered().(*bytes.Reader).Len()
+	slice = slice[len(slice)-remaining:]
+	for i = range slice {
+		switch slice[i] {
 		case '\t', '\n', '\r', ' ': //skip whitespace
 			continue
 		case ':': //key/val delimiter
@@ -92,22 +87,22 @@ readKey:
 		}
 	}
 readVal:
-	d = json.NewDecoder(r)
+	slice = slice[i+1:]
+	d = json.NewDecoder(bytes.NewReader(slice))
 	var val json.RawMessage
 	err = d.Decode(&val)
 	if err != nil {
 		return
 	}
-	return &keyVal{key, val}, d.Buffered(), nil
+	remaining = d.Buffered().(*bytes.Reader).Len()
+	return &keyVal{key, val}, slice[len(slice)-remaining:], nil
 }
 
 func (o *OrderedMap) UnmarshalJSON(b []byte) error {
-	var r io.Reader
 	var pair *keyVal
 	var err error
-	r = bytes.NewReader(b)
 	for {
-		pair, r, err = nextPair(r)
+		pair, b, err = nextPair(b)
 		if err != nil {
 			return err
 		}

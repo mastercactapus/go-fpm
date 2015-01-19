@@ -11,6 +11,12 @@ const SimpleJSON = `
 	"n\"ame" : "foo",
 	"version": "bar",
 	"b": {},
+ "large": [
+{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},
+{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},
+{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"}
+
+ ],
 	"a"	: 5,
 	"c": null,
 	"z": false,
@@ -20,7 +26,7 @@ const SimpleJSON = `
 
 
 `
-const ModifiedJSON = `{"n\"ame":"foo","version":"2.0.0","b":{},"a":5,"c":null,"z":false,"f":9.9,"3":{"m":7,"r":9},"version2":"2.0.0","apple":"2.0.0"}`
+const ModifiedJSON = `{"n\"ame":"foo","version":"2.0.0","b":{},"large":[{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"},{"foo":"bar"}],"a":5,"c":null,"z":false,"f":9.9,"3":{"m":7,"r":9},"version2":"2.0.0","apple":"2.0.0"}`
 
 func TestUnmarshalMarshalJSON(t *testing.T) {
 	var m = NewOrderedMap()
