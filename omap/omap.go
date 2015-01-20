@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
+	"io/ioutil"
 )
 
 // An OrderedMap keeps track of the order keys are placed in it
@@ -19,6 +21,36 @@ type OrderedMap struct {
 type keyVal struct {
 	Key string
 	Val json.RawMessage
+}
+
+type decodeReader struct {
+	r         *bytes.Reader
+	readBytes int
+}
+
+func (d *decodeReader) Read(b []byte) (int, error) {
+	l, err := d.r.Read(b)
+	d.readBytes += l
+	return l, err
+}
+func (d *decodeReader) ReadByte() (byte, error) {
+	b, err := d.r.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	d.readBytes++
+	return b, nil
+}
+func (d *decodeReader) UnreadReader(r io.Reader) error {
+	dat, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	_, err = d.r.Seek(int64(-len(dat)), 1)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // NewOrderedMap returns a new OrderedMap
@@ -47,62 +79,68 @@ func (o *OrderedMap) Get(k string) json.RawMessage {
 	return o.m[k]
 }
 
-func nextPair(b []byte) (pair *keyVal, slice []byte, err error) {
-	var i int
-	var remaining int
+func nextPair(d *decodeReader) (pair *keyVal, err error) {
 
 	//next token should be '{', ',', or '}'
-	for i = range b {
-		switch b[i] {
+	for {
+		b, err := d.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		switch b {
 		case '\t', '\n', '\r', ' ': //skip whitespace
 			continue
 		case '{', ',': //new object, or next key
 			goto readKey
 		case '}': //all done
-			return nil, nil, nil
+			return nil, nil
 		default:
 			//TODO: add beter info/error type
-			return nil, nil, errors.New("Invalid token: expected '{' or ',' but found '" + string(b[0]) + "'")
+			return nil, errors.New("Invalid token: expected '{' or ',' but found '" + string(b) + "'")
 		}
 	}
 readKey:
-	slice = b[i+1:]
 	var key string
-	d := json.NewDecoder(bytes.NewReader(slice))
-	err = d.Decode(&key)
+	dec := json.NewDecoder(d)
+	err = dec.Decode(&key)
 	if err != nil {
 		return
 	}
-	remaining = d.Buffered().(*bytes.Reader).Len()
-	slice = slice[len(slice)-remaining:]
-	for i = range slice {
-		switch slice[i] {
+	d.UnreadReader(dec.Buffered())
+
+	for {
+		b, err := d.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		switch b {
 		case '\t', '\n', '\r', ' ': //skip whitespace
 			continue
 		case ':': //key/val delimiter
 			goto readVal
 		default:
 			//TODO: add beter info/error type
-			return nil, nil, errors.New("Invalid token: expected ':' but found '" + string(b) + "'")
+			return nil, errors.New("Invalid token: expected ':' but found '" + string(b) + "'")
 		}
 	}
 readVal:
-	slice = slice[i+1:]
-	d = json.NewDecoder(bytes.NewReader(slice))
+	dec = json.NewDecoder(d)
 	var val json.RawMessage
-	err = d.Decode(&val)
+	err = dec.Decode(&val)
 	if err != nil {
 		return
 	}
-	remaining = d.Buffered().(*bytes.Reader).Len()
-	return &keyVal{key, val}, slice[len(slice)-remaining:], nil
+	d.UnreadReader(dec.Buffered())
+	return &keyVal{key, val}, nil
 }
 
 func (o *OrderedMap) UnmarshalJSON(b []byte) error {
 	var pair *keyVal
 	var err error
+	d := &decodeReader{r: bytes.NewReader(b)}
+
 	for {
-		pair, b, err = nextPair(b)
+		pair, err = nextPair(d)
 		if err != nil {
 			return err
 		}
