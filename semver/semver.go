@@ -14,7 +14,6 @@ const (
 	svEQ
 )
 
-
 type requirement struct {
 	version semver.Version
 	svType  int
@@ -24,7 +23,7 @@ type SemverRequirements struct {
 	requirements [][]requirement
 }
 
-var cleanup = strings.NewReplacer("  ", " ", "> ", ">", "= ", "=", "< ", "<")
+var cleanup = strings.NewReplacer("  ", " ", "> ", ">", "= ", "=", "< ", "<", "~ ", "~", "^ ", "")
 
 //strips any prefix for the version for parsing
 func stripPrefix(version string) string {
