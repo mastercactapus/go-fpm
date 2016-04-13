@@ -62,6 +62,8 @@ func TestNewSemverRequirements_xranges(t *testing.T) {
 	check("", []string{"0.0.0", "1.0.0", "1.0.0-alpha"}, []string{})
 	check("*", []string{"0.0.0", "1.0.0", "1.0.0-alpha"}, []string{})
 	check("1.x", []string{"1.0.0", "1.99.99"}, []string{"0.99.99", "1.2.0-alpha", "2.0.0"})
+	check("1.x.x", []string{"1.0.0", "1.99.99"}, []string{"0.99.99", "1.2.0-alpha", "2.0.0"})
+	check("1.X.x", []string{"1.0.0", "1.99.99"}, []string{"0.99.99", "1.2.0-alpha", "2.0.0"})
 	check("1.2.X", []string{"1.2.0", "1.2.99"}, []string{"0.99.99", "1.2.1-alpha", "2.0.0", "1.3.0"})
 	check("1.2.*", []string{"1.2.0", "1.2.99"}, []string{"0.99.99", "1.2.1-alpha", "2.0.0", "1.3.0"})
 	check("1", []string{"1.0.0", "1.99.99"}, []string{"0.99.99", "1.2.0-alpha", "2.0.0"})
