@@ -176,6 +176,9 @@ func NewSemverRequirements(requirements string) (*SemverRequirements, error) {
 	//cleanup, trim and remove duplicate whitespace
 	requirements = strings.Replace(requirements, ".X", ".x", -1)
 	requirements = cleanup.Replace(strings.TrimSpace(requirements))
+	if requirements == "x" || requirements == "X" {
+		requirements = "*"
+	}
 	parts := strings.Split(requirements, " ")
 	sr.requirements = make([][]requirement, 0, len(parts))
 	var currentSet []requirement
