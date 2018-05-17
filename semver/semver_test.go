@@ -1,8 +1,9 @@
 package semver
 
 import (
-	"github.com/blang/semver"
 	"testing"
+
+	"github.com/blang/semver"
 )
 
 func _semverReqCheck(t *testing.T) func(string, []string, []string) {
@@ -148,7 +149,7 @@ func TestParseUp(t *testing.T) {
 			t.Errorf("Error, got '%s' but expected '%s'\n", sv.String(), ex.String())
 		}
 		if r != rounded {
-			t.Errorf("Error, rounding reported '%b' but expected '%b'\n", r, rounded)
+			t.Errorf("Error, rounding reported '%t' but expected '%t'\n", r, rounded)
 		}
 	}
 

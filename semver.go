@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/blang/semver"
 	"strconv"
 	"strings"
+
+	"github.com/blang/semver"
 )
 
 const (
@@ -169,7 +170,7 @@ func (s *SemverRequirements) String() string {
 	return strings.Join(ors, " || ")
 }
 
-//parses a requirements string using the format from here: https://github.com/npm/node-semver
+// NewSemverRequirements parses a requirements string using the format defined here: https://github.com/npm/node-semver
 func NewSemverRequirements(requirements string) (*SemverRequirements, error) {
 	sr := new(SemverRequirements)
 
@@ -260,7 +261,7 @@ func NewSemverRequirements(requirements string) (*SemverRequirements, error) {
 	return sr, nil
 }
 
-//Checks if a semver version satisfies the requirements or not
+// SatisfiedBy checks if a semver version satisfies the requirements or not.
 func (s *SemverRequirements) SatisfiedBy(sv semver.Version) bool {
 	if len(s.requirements) == 0 {
 		return true
