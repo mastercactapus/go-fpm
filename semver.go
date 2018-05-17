@@ -27,19 +27,22 @@ var cleanup = strings.NewReplacer("  ", " ", "> ", ">", "= ", "=", "< ", "<")
 
 //strips any prefix for the version for parsing
 func stripPrefix(version string) string {
-	switch version[0] {
-	case '>', '<':
-		if version[1] == '=' {
-			version = version[2:]
-		} else {
+	// Avoiding index out of range errors.
+	if len(version) > 0 {
+		switch version[0] {
+		case '>', '<':
+			if len(version) > 1 && version[1] == '=' {
+				version = version[2:]
+			} else {
+				version = version[1:]
+			}
+		case '=', '^', '~':
 			version = version[1:]
 		}
-	case '=', '^', '~':
-		version = version[1:]
-	}
 
-	if version[0] == 'v' {
-		version = version[1:]
+		if len(version) > 0 && version[0] == 'v' {
+			version = version[1:]
+		}
 	}
 
 	return version

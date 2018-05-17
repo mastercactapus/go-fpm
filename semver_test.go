@@ -97,6 +97,27 @@ func TestNewSemverRequirements_tilde(t *testing.T) {
 	check("~1.2.3-beta.2", []string{"1.2.3-beta.2", "1.2.3", "1.2.4", "1.2.3-beta.3"}, []string{"1.2.2", "1.0.0", "1.2.4-beta.2", "1.3.0"})
 }
 
+func TestNewSemverRequirements_bad(t *testing.T) {
+	// Ensuring error was returned and index out of range error does not occur.
+	_, err := NewSemverRequirements(">=")
+
+	if err == nil {
+		t.Errorf("Failed to properly error for invalid semver '>='")
+	}
+
+	_, err = NewSemverRequirements(">")
+
+	if err == nil {
+		t.Errorf("Failed to properly error for invalid semver '>'")
+	}
+
+	_, err = NewSemverRequirements("~")
+
+	if err == nil {
+		t.Errorf("Failed to properly error for invalid semver '~'")
+	}
+}
+
 func TestParseDown(t *testing.T) {
 	check := func(input, expected string) {
 		ex, err := semver.Parse(expected)

@@ -246,8 +246,8 @@ func (r *Registry) fetchPackageData(name string) (*repoPackageData, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !compareLatest || sv.LTE(latest) {
-			p.sortedVersions = append(p.sortedVersions, sv)
+		if !compareLatest || sv.LTE(*latest) {
+			p.sortedVersions = append(p.sortedVersions, *sv)
 		}
 	}
 	sort.Sort(sort.Reverse(p.sortedVersions))
