@@ -25,15 +25,7 @@ type SemverRequirements struct {
 }
 
 var cleanup = strings.NewReplacer("  ", " ", "> ", ">", "= ", "=", "< ", "<")
-
-//strips any prefix for the version for parsing
-func stripPrefix(version string) string {
-	// Stripping out prefix semver range characters
-	var re = regexp.MustCompile("^[><^~]?=?v?")
-	strippedVersion := re.ReplaceAllString(version, "")
-
-	return strippedVersion
-}
+var stripPrefixRx = regexp.MustCompile("^([=^~]|[><]=?)?v?")
 
 //parses, replacing missing/wildcards with zero
 func parseDown(version string) (sv semver.Version, err error) {
@@ -175,7 +167,9 @@ func NewSemverRequirements(requirements string) (*SemverRequirements, error) {
 		if i == 0 || parts[i-1] == "||" {
 			currentSet = make([]requirement, 0, len(parts)-i)
 		}
-		clean := stripPrefix(parts[i])
+
+		// strips any prefix for the version for parsing
+		clean := stripPrefixRx.ReplaceAllString(parts[i], "")
 		vLow, err := parseDown(clean)
 		if err != nil {
 			return nil, err
