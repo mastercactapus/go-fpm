@@ -98,6 +98,26 @@ func TestNewSemverRequirements_tilde(t *testing.T) {
 	check("~1.2.3-beta.2", []string{"1.2.3-beta.2", "1.2.3", "1.2.4", "1.2.3-beta.3"}, []string{"1.2.2", "1.0.0", "1.2.4-beta.2", "1.3.0"})
 }
 
+func TestNewSemverRequirements_invalid(t *testing.T) {
+	check := func(semverStr string) {
+		_, err := NewSemverRequirements(semverStr)
+
+		if err == nil {
+			t.Errorf("check '%s': got nil, expected err", semverStr)
+		}
+	}
+
+	check("<=")
+	check("<")
+	check(">=")
+	check(">")
+	check("~")
+	check("^")
+	check("💩")
+	check("💩💩")
+	check("=<")
+}
+
 func TestParseDown(t *testing.T) {
 	check := func(input, expected string) {
 		ex, err := semver.Parse(expected)
