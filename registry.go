@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/blang/semver"
 	"io/ioutil"
 	"net/http"
 	"sort"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/blang/semver"
 )
 
 type Registry struct {
@@ -57,7 +58,7 @@ type SatisfiesChecker interface {
 }
 
 func (r *ResponseError) Error() string {
-	return fmt.Sprintf("Bad or unexpected status code %i: %s", r.Code, r.Status)
+	return fmt.Sprintf("Bad or unexpected status code %d: %s", r.Code, r.Status)
 }
 
 func (d *DependencyMap) UnmarshalJSON(data []byte) error {
@@ -81,13 +82,13 @@ func (d *DependencyMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewRegistry(baseUrl string) *Registry {
+func NewRegistry(baseURL string) *Registry {
 	r := new(Registry)
 	//Ensure trailing '/'
-	if baseUrl[len(baseUrl)-1:] == "/" {
-		r.baseURL = baseUrl
+	if baseURL[len(baseURL)-1:] == "/" {
+		r.baseURL = baseURL
 	} else {
-		r.baseURL = baseUrl + "/"
+		r.baseURL = baseURL + "/"
 	}
 	r.cache = make(packageCache, 200)
 	r.fetchQueue = make(chan packageDataRequest, 200)
@@ -204,7 +205,7 @@ func (r *Registry) cacheAll(deps DependencyMap) {
 	for k := range deps {
 		wg.Add(1)
 		go func(name string) {
-			r.packageData(k)
+			r.packageData(name)
 			wg.Done()
 		}(k)
 	}
@@ -218,13 +219,13 @@ func (r *Registry) packageData(name string) (*repoPackageData, error) {
 }
 
 func (r *Registry) fetchPackageData(name string) (*repoPackageData, error) {
-	fullUrl := r.baseURL + name
-	log.Debugf("Fetch data for '%s' from: %s", name, fullUrl)
-	res, err := http.Get(fullUrl)
-	defer res.Body.Close()
+	fullURL := r.baseURL + name
+	log.Debugf("Fetch data for '%s' from: %s", name, fullURL)
+	res, err := http.Get(fullURL)
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		ioutil.ReadAll(res.Body)
 		return nil, &ResponseError{res.StatusCode, res.Status}
