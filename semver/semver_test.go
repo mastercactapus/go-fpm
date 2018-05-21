@@ -45,6 +45,7 @@ func TestNewSemverRequirements_direct(t *testing.T) {
 	check("1.2.7||>=1.2.9 <2.0.0", []string{"1.2.7", "1.2.9", "1.4.6"}, []string{"1.2.8", "2.0.0"})
 	check(">1.2.3-alpha.3", []string{"1.2.3-alpha.7", "3.4.5"}, []string{"3.4.5-alpha.9"})
 	check(">= 0.3.0", []string{"0.3.0", "0.3.1", "1.0.0"}, []string{"0.0.0", "0.2.0", "0.2.9", "0.3.0-beta"})
+	check("1.2.7 || =1.2.8", []string{"1.2.7", "1.2.8"}, []string{"1.2.9", "1.2.6", "2.0.0"})
 }
 
 func TestNewSemverRequirements_hyphens(t *testing.T) {
@@ -102,6 +103,28 @@ func TestNewSemverRequirements_tilde(t *testing.T) {
 	check("~0.2", []string{"0.2.0", "0.2.99"}, []string{"0.1.9", "0.3.0", "0.2.3-alpha"})
 	check("~0", []string{"0.0.0", "0.2.4"}, []string{"1.2.2", "1.0.0", "0.2.3-alpha"})
 	check("~1.2.3-beta.2", []string{"1.2.3-beta.2", "1.2.3", "1.2.4", "1.2.3-beta.3"}, []string{"1.2.2", "1.0.0", "1.2.4-beta.2", "1.3.0"})
+}
+
+func TestNewSemverRequirements_invalid(t *testing.T) {
+	check := func(semverStr string) {
+		_, err := NewSemverRequirements(semverStr)
+
+		if err == nil {
+			t.Errorf("check '%s': got nil, expected err", semverStr)
+		}
+	}
+
+	check("<=")
+	check("<")
+	check(">=")
+	check(">")
+	check("~")
+	check("^")
+	check("💩")
+	check("💩💩")
+	check("=<")
+	check("==")
+	check("==1.2.3")
 }
 
 func TestParseDown(t *testing.T) {
